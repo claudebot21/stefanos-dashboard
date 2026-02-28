@@ -14,31 +14,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup GitHub CLI
-        uses: cli/cli-action@v1
-        
       - name: Fetch GitHub Data
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get repo count
+          # Install GitHub CLI
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+          
+          # Get repo count for claudebot21
           REPO_COUNT=$(gh repo list claudebot21 --limit 1000 --json name | jq length)
           
-          # Get recent commits (last 7 days)
-          COMMITS=$(gh api users/dekolor/events --jq '[.[] | select(.type=="PushEvent") | .created_at] | length')
-          
-          # Get open PRs
-          PRS=$(gh search prs --author dekolor --state open --json number | jq length)
-          
-          # Get recent activity
+          # Get recent events for dekolor
           gh api users/dekolor/events --jq '.[:10] | map({type: .type, repo: .repo.name, date: .created_at})' > activity.json
+          
+          # Get event count (rough approximation of activity)
+          EVENTS=$(gh api users/dekolor/events --jq 'length')
           
           # Create data file
           cat > data.json << EOF
           {
             "repos": $REPO_COUNT,
-            "commits": $COMMITS,
-            "prs": $PRS,
+            "events": $EVENTS,
             "updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           }
           EOF
@@ -47,8 +48,7 @@ jobs:
         run: |
           # Read the data
           REPOS=$(jq -r '.repos' data.json)
-          COMMITS=$(jq -r '.commits' data.json)
-          PRS=$(jq -r '.prs' data.json)
+          EVENTS=$(jq -r '.events' data.json)
           UPDATED=$(jq -r '.updated' data.json)
           
           # Create updated index.html with real data
@@ -145,7 +145,7 @@ jobs:
                   }
                   .stat-grid {
                       display: grid;
-                      grid-template-columns: repeat(3, 1fr);
+                      grid-template-columns: repeat(2, 1fr);
                       gap: 1rem;
                       margin-bottom: 1rem;
                   }
@@ -186,13 +186,6 @@ jobs:
                       margin-left: auto;
                       color: #8b949e;
                       font-size: 0.8rem;
-                  }
-                  .commit-hash {
-                      font-family: 'SF Mono', monospace;
-                      background: #30363d;
-                      padding: 0.125rem 0.375rem;
-                      border-radius: 4px;
-                      font-size: 0.75rem;
                   }
                   .pulse {
                       display: inline-block;
@@ -235,7 +228,7 @@ jobs:
                   <p>Personal Command Center</p>
               </div>
               <div class="last-updated">
-                  <span class="pulse"></span>Last updated: UPDATED_PLACEHOLDER
+                  <span class="pulse"></span>Last updated: REPOS_PLACEHOLDER
               </div>
               
               <div class="grid">
@@ -269,12 +262,8 @@ jobs:
                               <div class="stat-label">Repositories</div>
                           </div>
                           <div class="stat-box">
-                              <div class="stat-number">COMMITS_PLACEHOLDER</div>
+                              <div class="stat-number">EVENTS_PLACEHOLDER</div>
                               <div class="stat-label">Recent Events</div>
-                          </div>
-                          <div class="stat-box">
-                              <div class="stat-number">PRS_PLACEHOLDER</div>
-                              <div class="stat-label">Open PRs</div>
                           </div>
                       </div>
                       <div id="github-activity">
@@ -420,10 +409,9 @@ jobs:
           HTML
           
           # Replace placeholders with actual values
+          sed -i "s/REPOS_PLACEHOLDER/$UPDATED/g" index.html
           sed -i "s/REPOS_PLACEHOLDER/$REPOS/g" index.html
-          sed -i "s/COMMITS_PLACEHOLDER/$COMMITS/g" index.html
-          sed -i "s/PRS_PLACEHOLDER/$PRS/g" index.html
-          sed -i "s/UPDATED_PLACEHOLDER/$UPDATED/g" index.html
+          sed -i "s/EVENTS_PLACEHOLDER/$EVENTS/g" index.html
           
       - name: Commit and Push
         run: |
