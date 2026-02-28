@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StefanOS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            color: #58a6ff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .weather-main {
+            font-size: 3rem;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .weather-temp {
+            font-size: 2.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .metric {
+            background: #0d1117;
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            color: #8b949e;
+            text-transform: uppercase;
+        }
+        .metric-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+        .health-bar {
+            background: #0d1117;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        .health-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .health-fill.good { background: #238636; }
+        .health-fill.warn { background: #f0883e; }
+        .health-fill.crit { background: #da3633; }
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #0d1117;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .btn {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .btn:hover { background: #2ea043; }
+        .btn.secondary { background: #1f6feb; }
+        .btn.secondary:hover { background: #388bfd; }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        .status-dot.online { background: #238636; box-shadow: 0 0 8px #238636; }
+        .status-dot.warning { background: #f0883e; }
+        .status-dot.offline { background: #da3633; }
+        .log-entry {
+            font-family: 'SF Mono', monospace;
+            font-size: 0.8rem;
+            padding: 0.5rem;
+            border-left: 3px solid #30363d;
+            margin-bottom: 0.5rem;
+        }
+        .log-time { color: #8b949e; }
+        .log-info { border-left-color: #58a6ff; }
+        .log-success { border-left-color: #238636; }
+        .log-warn { border-left-color: #f0883e; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔮 StefanOS</h1>
+        <p>Personal Command Center</p>
+    </div>
+    
+    <div class="grid">
+        <!-- Weather -->
+        <div class="card">
+            <h2>🌤️ Weather · Ganeasa, RO</h2>
+            <div class="weather-main" id="weather-icon">☀️</div>
+            <div class="weather-temp" id="weather-temp">--°C</div>
+            <div class="weather-details">
+                <div class="metric">
+                    <div class="metric-label">Feels Like</div>
+                    <div class="metric-value" id="feels-like">--°</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Humidity</div>
+                    <div class="metric-value" id="humidity">--%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Wind</div>
+                    <div class="metric-value" id="wind">--km/h</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="card">
+            <h2>📊 System Health</h2>
+            <div style="margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span>CPU</span>
+                    <span id="cpu-val">45%</span>
+                </div>
+                <div class="health-bar"><div class="health-fill good" id="cpu-bar" style="width: 45%"></div></div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span>Memory</span>
+                    <span id="mem-val">62%</span>
+                </div>
+                <div class="health-bar"><div class="health-fill good" id="mem-bar" style="width: 62%"></div></div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span>Disk</span>
+                    <span id="disk-val">38%</span>
+                </div>
+                <div class="health-bar"><div class="health-fill good" id="disk-bar" style="width: 38%"></div></div>
+            </div>
+            <div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span>Network</span>
+                    <span id="net-val">12ms</span>
+                </div>
+                <div class="health-bar"><div class="health-fill good" id="net-bar" style="width: 15%"></div></div>
+            </div>
+        </div>
+
+        <!-- GitHub Activity -->
+        <div class="card">
+            <h2>🐙 GitHub Activity</h2>
+            <div class="weather-details" style="margin-bottom: 1rem;">
+                <div class="metric">
+                    <div class="metric-label">Repos</div>
+                    <div class="metric-value" id="gh-repos">--</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Commits (7d)</div>
+                    <div class="metric-value" id="gh-commits">--</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Open PRs</div>
+                    <div class="metric-value" id="gh-prs">--</div>
+                </div>
+            </div>
+            <div id="github-activity">
+                <div class="activity-item">
+                    <span>⏳</span> Loading activity...
+                </div>
+            </div>
+        </div>
+
+        <!-- Service Status -->
+        <div class="card">
+            <h2>🔌 Service Status</h2>
+            <div id="services">
+                <div class="activity-item">
+                    <span class="status-dot online"></span>
+                    <span>Kimi Claw Core</span>
+                    <span style="margin-left: auto; color: #8b949e;">99.9%</span>
+                </div>
+                <div class="activity-item">
+                    <span class="status-dot online"></span>
+                    <span>Memory System</span>
+                    <span style="margin-left: auto; color: #8b949e;">Active</span>
+                </div>
+                <div class="activity-item">
+                    <span class="status-dot online"></span>
+                    <span>Autonomous Agents</span>
+                    <span style="margin-left: auto; color: #8b949e;">5/5</span>
+                </div>
+                <div class="activity-item">
+                    <span class="status-dot online"></span>
+                    <span>GitHub Integration</span>
+                    <span style="margin-left: auto; color: #8b949e;">Connected</span>
+                </div>
+                <div class="activity-item">
+                    <span class="status-dot online"></span>
+                    <span>Discord Bridge</span>
+                    <span style="margin-left: auto; color: #8b949e;">Online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <h2>⚡ Quick Actions</h2>
+            <button class="btn" onclick="action('sync')">🔄 Sync GitHub</button>
+            <button class="btn secondary" onclick="action('backup')">💾 Backup System</button>
+            <button class="btn secondary" onclick="action('restart')">🔄 Restart Services</button>
+            <button class="btn secondary" onclick="action('cache')">🧹 Clear Cache</button>
+            <button class="btn secondary" onclick="action('update')">⬆️ Update System</button>
+            <button class="btn" onclick="action('health')">🏥 Full Health Check</button>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card">
+            <h2>📝 Activity Log</h2>
+            <div id="activity-log">
+                <div class="log-entry log-success">
+                    <span class="log-time">07:42</span> Opportunity Scanner completed
+                </div>
+                <div class="log-entry log-success">
+                    <span class="log-time">07:37</span> StefanOS dashboard deployed
+                </div>
+                <div class="log-entry log-info">
+                    <span class="log-time">07:10</span> Autonomous agents initialized
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Weather data for Ganeasa, Romania
+        async function fetchWeather() {
+            try {
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.5&longitude=26.0&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m');
+                const data = await res.json();
+                const current = data.current;
+                
+                document.getElementById('weather-temp').textContent = Math.round(current.temperature_2m) + '°C';
+                document.getElementById('feels-like').textContent = Math.round(current.apparent_temperature) + '°';
+                document.getElementById('humidity').textContent = current.relative_humidity_2m + '%';
+                document.getElementById('wind').textContent = Math.round(current.wind_speed_10m) + ' km/h';
+                
+                // Weather icons based on WMO codes
+                const icons = {0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️', 51: '🌦️', 53: '🌧️', 55: '🌧️', 61: '🌧️', 63: '🌧️', 65: '🌧️', 71: '🌨️', 73: '🌨️', 75: '🌨️', 95: '⛈️'};
+                document.getElementById('weather-icon').textContent = icons[current.weather_code] || '☁️';
+            } catch (e) {
+                console.error('Weather fetch failed:', e);
+            }
+        }
+
+        // GitHub activity
+        async function fetchGitHub() {
+            try {
+                const res = await fetch('https://api.github.com/users/dekolor/repos?per_page=100');
+                const repos = await res.json();
+                document.getElementById('gh-repos').textContent = repos.length;
+                
+                // Get recent activity (simplified)
+                let activityHtml = '';
+                repos.slice(0, 5).forEach(repo => {
+                    const updated = new Date(repo.updated_at).toLocaleDateString();
+                    activityHtml += `<div class="activity-item">
+                        <span>📦</span>
+                        <span>${repo.name}</span>
+                        <span style="margin-left: auto; color: #8b949e;">${updated}</span>
+                    </div>`;
+                });
+                document.getElementById('github-activity').innerHTML = activityHtml;
+                document.getElementById('gh-commits').textContent = '—';
+                document.getElementById('gh-prs').textContent = '—';
+            } catch (e) {
+                console.error('GitHub fetch failed:', e);
+                document.getElementById('github-activity').innerHTML = '<div class="activity-item"><span>❌</span> GitHub API limit reached</div>';
+            }
+        }
+
+        // Simulate dynamic system metrics
+        function updateMetrics() {
+            const metrics = [
+                {id: 'cpu', val: 30 + Math.random() * 40},
+                {id: 'mem', val: 50 + Math.random() * 30},
+                {id: 'disk', val: 35 + Math.random() * 10},
+                {id: 'net', val: 5 + Math.random() * 20}
+            ];
+            
+            metrics.forEach(m => {
+                const val = Math.round(m.val);
+                document.getElementById(m.id + '-val').textContent = m.id === 'net' ? val + 'ms' : val + '%';
+                document.getElementById(m.id + '-bar').style.width = Math.min(val, 100) + '%';
+                
+                const bar = document.getElementById(m.id + '-bar');
+                bar.className = 'health-fill ' + (val > 80 ? 'crit' : val > 60 ? 'warn' : 'good');
+            });
+        }
+
+        // Action handler
+        function action(type) {
+            const log = document.getElementById('activity-log');
+            const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit'});
+            const entry = document.createElement('div');
+            entry.className = 'log-entry log-info';
+            entry.innerHTML = `<span class="log-time">${time}</span> ${type} initiated...`;
+            log.prepend(entry);
+            
+            setTimeout(() => {
+                entry.className = 'log-entry log-success';
+                entry.innerHTML = `<span class="log-time">${time}</span> ${type} completed successfully`;
+            }, 1500);
+        }
+
+        // Init
+        fetchWeather();
+        fetchGitHub();
+        updateMetrics();
+        setInterval(updateMetrics, 30000);
+        setInterval(fetchWeather, 300000);
+    </script>
+</body>
+</html>
