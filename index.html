@@ -24,6 +24,12 @@
             -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
         }
+        .last-updated {
+            text-align: center;
+            color: #8b949e;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -82,21 +88,28 @@
             font-weight: 600;
             margin-top: 0.25rem;
         }
-        .health-bar {
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .stat-box {
             background: #0d1117;
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 0.5rem 0;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
         }
-        .health-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.3s;
+        .stat-number {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #58a6ff;
         }
-        .health-fill.good { background: #238636; }
-        .health-fill.warn { background: #f0883e; }
-        .health-fill.crit { background: #da3633; }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-top: 0.25rem;
+        }
         .activity-item {
             display: flex;
             align-items: center;
@@ -106,6 +119,31 @@
             border-radius: 8px;
             margin-bottom: 0.5rem;
             font-size: 0.9rem;
+        }
+        .activity-item:last-child {
+            margin-bottom: 0;
+        }
+        .repo-name {
+            font-weight: 500;
+            color: #58a6ff;
+        }
+        .activity-meta {
+            margin-left: auto;
+            color: #8b949e;
+            font-size: 0.8rem;
+        }
+        .pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #238636;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         .btn {
             background: #238636;
@@ -122,33 +160,20 @@
         .btn:hover { background: #2ea043; }
         .btn.secondary { background: #1f6feb; }
         .btn.secondary:hover { background: #388bfd; }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 0.5rem;
+        .info-text {
+            color: #8b949e;
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
-        .status-dot.online { background: #238636; box-shadow: 0 0 8px #238636; }
-        .status-dot.warning { background: #f0883e; }
-        .status-dot.offline { background: #da3633; }
-        .log-entry {
-            font-family: 'SF Mono', monospace;
-            font-size: 0.8rem;
-            padding: 0.5rem;
-            border-left: 3px solid #30363d;
-            margin-bottom: 0.5rem;
-        }
-        .log-time { color: #8b949e; }
-        .log-info { border-left-color: #58a6ff; }
-        .log-success { border-left-color: #238636; }
-        .log-warn { border-left-color: #f0883e; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🔮 StefanOS</h1>
         <p>Personal Command Center</p>
+    </div>
+    <div class="last-updated">
+        <span class="pulse"></span>Last updated: 2026-02-28T23:55:48Z
     </div>
     
     <div class="grid">
@@ -173,119 +198,103 @@
             </div>
         </div>
 
-        <!-- System Health -->
-        <div class="card">
-            <h2>📊 System Health</h2>
-            <div style="margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                    <span>CPU</span>
-                    <span id="cpu-val">45%</span>
-                </div>
-                <div class="health-bar"><div class="health-fill good" id="cpu-bar" style="width: 45%"></div></div>
-            </div>
-            <div style="margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                    <span>Memory</span>
-                    <span id="mem-val">62%</span>
-                </div>
-                <div class="health-bar"><div class="health-fill good" id="mem-bar" style="width: 62%"></div></div>
-            </div>
-            <div style="margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                    <span>Disk</span>
-                    <span id="disk-val">38%</span>
-                </div>
-                <div class="health-bar"><div class="health-fill good" id="disk-bar" style="width: 38%"></div></div>
-            </div>
-            <div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                    <span>Network</span>
-                    <span id="net-val">12ms</span>
-                </div>
-                <div class="health-bar"><div class="health-fill good" id="net-bar" style="width: 15%"></div></div>
-            </div>
-        </div>
-
-        <!-- GitHub Activity -->
+        <!-- GitHub Stats -->
         <div class="card">
             <h2>🐙 GitHub Activity</h2>
-            <div class="weather-details" style="margin-bottom: 1rem;">
-                <div class="metric">
-                    <div class="metric-label">Repos</div>
-                    <div class="metric-value" id="gh-repos">--</div>
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-number">2026-02-28T23:55:48Z</div>
+                    <div class="stat-label">Repositories</div>
                 </div>
-                <div class="metric">
-                    <div class="metric-label">Commits (7d)</div>
-                    <div class="metric-value" id="gh-commits">--</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-label">Open PRs</div>
-                    <div class="metric-value" id="gh-prs">--</div>
+                <div class="stat-box">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Recent Events</div>
                 </div>
             </div>
             <div id="github-activity">
                 <div class="activity-item">
-                    <span>⏳</span> Loading activity...
+                    <span>⏳</span>
+                    <span>Loading recent activity...</span>
                 </div>
             </div>
         </div>
 
-        <!-- Service Status -->
+        <!-- Kimi Claw Status -->
         <div class="card">
-            <h2>🔌 Service Status</h2>
-            <div id="services">
-                <div class="activity-item">
-                    <span class="status-dot online"></span>
-                    <span>Kimi Claw Core</span>
-                    <span style="margin-left: auto; color: #8b949e;">99.9%</span>
-                </div>
-                <div class="activity-item">
-                    <span class="status-dot online"></span>
-                    <span>Memory System</span>
-                    <span style="margin-left: auto; color: #8b949e;">Active</span>
-                </div>
-                <div class="activity-item">
-                    <span class="status-dot online"></span>
-                    <span>Autonomous Agents</span>
-                    <span style="margin-left: auto; color: #8b949e;">5/5</span>
-                </div>
-                <div class="activity-item">
-                    <span class="status-dot online"></span>
-                    <span>GitHub Integration</span>
-                    <span style="margin-left: auto; color: #8b949e;">Connected</span>
-                </div>
-                <div class="activity-item">
-                    <span class="status-dot online"></span>
-                    <span>Discord Bridge</span>
-                    <span style="margin-left: auto; color: #8b949e;">Online</span>
-                </div>
+            <h2>🔮 Kimi Claw Status</h2>
+            <div class="info-text">
+                <p style="margin-bottom: 1rem;">
+                    <span class="pulse"></span>
+                    <strong>Status:</strong> Online & Autonomous
+                </p>
+                <p style="margin-bottom: 1rem;">
+                    Autonomous agents running continuous improvement:
+                </p>
+                <ul style="list-style: none; margin-left: 0;">
+                    <li style="margin-bottom: 0.5rem;">✅ Memory Curator (every 6h)</li>
+                    <li style="margin-bottom: 0.5rem;">✅ Skill Explorer (daily)</li>
+                    <li style="margin-bottom: 0.5rem;">✅ Self-Architect (daily)</li>
+                    <li style="margin-bottom: 0.5rem;">✅ Knowledge Seeker (daily)</li>
+                    <li style="margin-bottom: 0.5rem;">✅ Diary Keeper (daily)</li>
+                </ul>
             </div>
         </div>
 
-        <!-- Quick Actions -->
+        <!-- Active Projects -->
         <div class="card">
-            <h2>⚡ Quick Actions</h2>
-            <button class="btn" onclick="action('sync')">🔄 Sync GitHub</button>
-            <button class="btn secondary" onclick="action('backup')">💾 Backup System</button>
-            <button class="btn secondary" onclick="action('restart')">🔄 Restart Services</button>
-            <button class="btn secondary" onclick="action('cache')">🧹 Clear Cache</button>
-            <button class="btn secondary" onclick="action('update')">⬆️ Update System</button>
-            <button class="btn" onclick="action('health')">🏥 Full Health Check</button>
+            <h2>🚀 Active Projects</h2>
+            <div class="activity-item">
+                <span>🤖</span>
+                <div>
+                    <div class="repo-name">Kimi Claw Evolution</div>
+                    <div style="font-size: 0.8rem; color: #8b949e;">Autonomous self-improvement system</div>
+                </div>
+                <span class="activity-meta">In Progress</span>
+            </div>
+            <div class="activity-item">
+                <span>💰</span>
+                <div>
+                    <div class="repo-name">Financial Reconciliation Agent</div>
+                    <div style="font-size: 0.8rem; color: #8b949e;">SMB automation prototype</div>
+                </div>
+                <span class="activity-meta">Building</span>
+            </div>
+            <div class="activity-item">
+                <span>📊</span>
+                <div>
+                    <div class="repo-name">Opportunity Scanner</div>
+                    <div style="font-size: 0.8rem; color: #8b949e;">Daily automated research</div>
+                </div>
+                <span class="activity-meta">Running</span>
+            </div>
         </div>
 
-        <!-- Activity Log -->
+        <!-- Quick Links -->
         <div class="card">
-            <h2>📝 Activity Log</h2>
-            <div id="activity-log">
-                <div class="log-entry log-success">
-                    <span class="log-time">07:42</span> Opportunity Scanner completed
-                </div>
-                <div class="log-entry log-success">
-                    <span class="log-time">07:37</span> StefanOS dashboard deployed
-                </div>
-                <div class="log-entry log-info">
-                    <span class="log-time">07:10</span> Autonomous agents initialized
-                </div>
+            <h2>⚡ Quick Links</h2>
+            <a href="https://github.com/dekolor" target="_blank" style="text-decoration: none;">
+                <button class="btn">🐙 Your GitHub Profile</button>
+            </a>
+            <a href="https://github.com/claudebot21" target="_blank" style="text-decoration: none;">
+                <button class="btn secondary">🤖 Kimi Claw Repos</button>
+            </a>
+            <button class="btn secondary" onclick="location.reload()">🔄 Refresh Data</button>
+        </div>
+
+        <!-- System Info -->
+        <div class="card">
+            <h2>📈 System Overview</h2>
+            <div class="info-text">
+                <p><strong>Location:</strong> Ganeasa, Ilfov, Romania</p>
+                <p><strong>Timezone:</strong> EET (UTC+2)</p>
+                <p><strong>Primary Channel:</strong> Discord</p>
+                <p style="margin-top: 1rem;">
+                    <strong>Active Integrations:</strong>
+                </p>
+                <p>• GitHub (read access)</p>
+                <p>• Discord messaging</p>
+                <p>• 58 available skills</p>
+                <p>• 5 autonomous subagents</p>
             </div>
         </div>
     </div>
@@ -303,7 +312,6 @@
                 document.getElementById('humidity').textContent = current.relative_humidity_2m + '%';
                 document.getElementById('wind').textContent = Math.round(current.wind_speed_10m) + ' km/h';
                 
-                // Weather icons based on WMO codes
                 const icons = {0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️', 51: '🌦️', 53: '🌧️', 55: '🌧️', 61: '🌧️', 63: '🌧️', 65: '🌧️', 71: '🌨️', 73: '🌨️', 75: '🌨️', 95: '⛈️'};
                 document.getElementById('weather-icon').textContent = icons[current.weather_code] || '☁️';
             } catch (e) {
@@ -311,71 +319,34 @@
             }
         }
 
-        // GitHub activity
-        async function fetchGitHub() {
+        // Fetch GitHub activity from activity.json
+        async function fetchActivity() {
             try {
-                const res = await fetch('https://api.github.com/users/dekolor/repos?per_page=100');
-                const repos = await res.json();
-                document.getElementById('gh-repos').textContent = repos.length;
+                const res = await fetch('activity.json');
+                const activities = await res.json();
                 
-                // Get recent activity (simplified)
-                let activityHtml = '';
-                repos.slice(0, 5).forEach(repo => {
-                    const updated = new Date(repo.updated_at).toLocaleDateString();
-                    activityHtml += `<div class="activity-item">
-                        <span>📦</span>
-                        <span>${repo.name}</span>
-                        <span style="margin-left: auto; color: #8b949e;">${updated}</span>
+                let html = '';
+                activities.slice(0, 5).forEach(act => {
+                    const date = new Date(act.date).toLocaleDateString();
+                    const icon = act.type === 'PushEvent' ? '⬆️' : 
+                                act.type === 'CreateEvent' ? '✨' : 
+                                act.type === 'PullRequestEvent' ? '🔀' : 
+                                act.type === 'IssuesEvent' ? '🐛' : '📝';
+                    const repo = act.repo.split('/').pop();
+                    html += `<div class="activity-item">
+                        <span>${icon}</span>
+                        <span class="repo-name">${repo}</span>
+                        <span class="activity-meta">${date}</span>
                     </div>`;
                 });
-                document.getElementById('github-activity').innerHTML = activityHtml;
-                document.getElementById('gh-commits').textContent = '—';
-                document.getElementById('gh-prs').textContent = '—';
+                document.getElementById('github-activity').innerHTML = html;
             } catch (e) {
-                console.error('GitHub fetch failed:', e);
-                document.getElementById('github-activity').innerHTML = '<div class="activity-item"><span>❌</span> GitHub API limit reached</div>';
+                console.error('Activity fetch failed:', e);
             }
         }
 
-        // Simulate dynamic system metrics
-        function updateMetrics() {
-            const metrics = [
-                {id: 'cpu', val: 30 + Math.random() * 40},
-                {id: 'mem', val: 50 + Math.random() * 30},
-                {id: 'disk', val: 35 + Math.random() * 10},
-                {id: 'net', val: 5 + Math.random() * 20}
-            ];
-            
-            metrics.forEach(m => {
-                const val = Math.round(m.val);
-                document.getElementById(m.id + '-val').textContent = m.id === 'net' ? val + 'ms' : val + '%';
-                document.getElementById(m.id + '-bar').style.width = Math.min(val, 100) + '%';
-                
-                const bar = document.getElementById(m.id + '-bar');
-                bar.className = 'health-fill ' + (val > 80 ? 'crit' : val > 60 ? 'warn' : 'good');
-            });
-        }
-
-        // Action handler
-        function action(type) {
-            const log = document.getElementById('activity-log');
-            const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit'});
-            const entry = document.createElement('div');
-            entry.className = 'log-entry log-info';
-            entry.innerHTML = `<span class="log-time">${time}</span> ${type} initiated...`;
-            log.prepend(entry);
-            
-            setTimeout(() => {
-                entry.className = 'log-entry log-success';
-                entry.innerHTML = `<span class="log-time">${time}</span> ${type} completed successfully`;
-            }, 1500);
-        }
-
-        // Init
         fetchWeather();
-        fetchGitHub();
-        updateMetrics();
-        setInterval(updateMetrics, 30000);
+        fetchActivity();
         setInterval(fetchWeather, 300000);
     </script>
 </body>
