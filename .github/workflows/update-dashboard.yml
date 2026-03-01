@@ -4,12 +4,20 @@ on:
   schedule:
     - cron: '*/15 * * * *'  # Every 15 minutes
   workflow_dispatch:  # Allow manual trigger
+  push:
+    branches: [ master, main ]
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  update:
+  update-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,404 +27,57 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Install GitHub CLI
-          type -p curl >/dev/null || (apt update && apt install curl -y)
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && apt update \
-          && apt install gh -y
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh jq -y
+          
+          # Authenticate
+          echo "$GH_TOKEN" | gh auth login --with-token
           
           # Get repo count for claudebot21
           REPO_COUNT=$(gh repo list claudebot21 --limit 1000 --json name | jq length)
+          echo "REPO_COUNT=$REPO_COUNT" >> $GITHUB_ENV
           
           # Get recent events for dekolor
           gh api users/dekolor/events --jq '.[:10] | map({type: .type, repo: .repo.name, date: .created_at})' > activity.json
           
-          # Get event count (rough approximation of activity)
+          # Get event count
           EVENTS=$(gh api users/dekolor/events --jq 'length')
+          echo "EVENTS=$EVENTS" >> $GITHUB_ENV
           
-          # Create data file
-          cat > data.json << EOF
+          # Get PR count
+          PRS=$(gh search prs --author dekolor --state open --json number | jq length)
+          echo "PRS=$PRS" >> $GITHUB_ENV
+          
+          # Create dashboard data file
+          cat > dashboard-data.json << EOF
           {
             "repos": $REPO_COUNT,
             "events": $EVENTS,
+            "openPRs": $PRS,
             "updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           }
           EOF
           
-      - name: Update Dashboard
-        run: |
-          # Read the data
-          REPOS=$(jq -r '.repos' data.json)
-          EVENTS=$(jq -r '.events' data.json)
-          UPDATED=$(jq -r '.updated' data.json)
-          
-          # Create updated index.html with real data
-          cat > index.html << 'HTML'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>StefanOS</title>
-              <style>
-                  * { margin: 0; padding: 0; box-sizing: border-box; }
-                  body {
-                      background: #0d1117;
-                      color: #c9d1d9;
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      min-height: 100vh;
-                      padding: 2rem;
-                  }
-                  .header {
-                      text-align: center;
-                      margin-bottom: 2rem;
-                  }
-                  .header h1 {
-                      font-size: 2.5rem;
-                      background: linear-gradient(90deg, #58a6ff, #a371f7);
-                      -webkit-background-clip: text;
-                      -webkit-text-fill-color: transparent;
-                      margin-bottom: 0.5rem;
-                  }
-                  .last-updated {
-                      text-align: center;
-                      color: #8b949e;
-                      font-size: 0.85rem;
-                      margin-bottom: 1.5rem;
-                  }
-                  .grid {
-                      display: grid;
-                      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                      gap: 1.5rem;
-                      max-width: 1400px;
-                      margin: 0 auto;
-                  }
-                  .card {
-                      background: #161b22;
-                      border: 1px solid #30363d;
-                      border-radius: 12px;
-                      padding: 1.5rem;
-                      transition: transform 0.2s, box-shadow 0.2s;
-                  }
-                  .card:hover {
-                      transform: translateY(-2px);
-                      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-                  }
-                  .card h2 {
-                      font-size: 1.1rem;
-                      color: #58a6ff;
-                      margin-bottom: 1rem;
-                      display: flex;
-                      align-items: center;
-                      gap: 0.5rem;
-                  }
-                  .weather-main {
-                      font-size: 3rem;
-                      text-align: center;
-                      margin: 1rem 0;
-                  }
-                  .weather-temp {
-                      font-size: 2.5rem;
-                      text-align: center;
-                      font-weight: 600;
-                  }
-                  .weather-details {
-                      display: grid;
-                      grid-template-columns: repeat(3, 1fr);
-                      gap: 1rem;
-                      margin-top: 1rem;
-                      text-align: center;
-                  }
-                  .metric {
-                      background: #0d1117;
-                      padding: 0.75rem;
-                      border-radius: 8px;
-                  }
-                  .metric-label {
-                      font-size: 0.75rem;
-                      color: #8b949e;
-                      text-transform: uppercase;
-                  }
-                  .metric-value {
-                      font-size: 1.25rem;
-                      font-weight: 600;
-                      margin-top: 0.25rem;
-                  }
-                  .stat-grid {
-                      display: grid;
-                      grid-template-columns: repeat(2, 1fr);
-                      gap: 1rem;
-                      margin-bottom: 1rem;
-                  }
-                  .stat-box {
-                      background: #0d1117;
-                      padding: 1rem;
-                      border-radius: 8px;
-                      text-align: center;
-                  }
-                  .stat-number {
-                      font-size: 1.75rem;
-                      font-weight: 700;
-                      color: #58a6ff;
-                  }
-                  .stat-label {
-                      font-size: 0.8rem;
-                      color: #8b949e;
-                      margin-top: 0.25rem;
-                  }
-                  .activity-item {
-                      display: flex;
-                      align-items: center;
-                      gap: 0.75rem;
-                      padding: 0.75rem;
-                      background: #0d1117;
-                      border-radius: 8px;
-                      margin-bottom: 0.5rem;
-                      font-size: 0.9rem;
-                  }
-                  .activity-item:last-child {
-                      margin-bottom: 0;
-                  }
-                  .repo-name {
-                      font-weight: 500;
-                      color: #58a6ff;
-                  }
-                  .activity-meta {
-                      margin-left: auto;
-                      color: #8b949e;
-                      font-size: 0.8rem;
-                  }
-                  .pulse {
-                      display: inline-block;
-                      width: 8px;
-                      height: 8px;
-                      background: #238636;
-                      border-radius: 50%;
-                      margin-right: 0.5rem;
-                      animation: pulse 2s infinite;
-                  }
-                  @keyframes pulse {
-                      0%, 100% { opacity: 1; }
-                      50% { opacity: 0.5; }
-                  }
-                  .btn {
-                      background: #238636;
-                      color: white;
-                      border: none;
-                      padding: 0.75rem 1rem;
-                      border-radius: 6px;
-                      cursor: pointer;
-                      font-size: 0.9rem;
-                      transition: background 0.2s;
-                      width: 100%;
-                      margin-bottom: 0.5rem;
-                  }
-                  .btn:hover { background: #2ea043; }
-                  .btn.secondary { background: #1f6feb; }
-                  .btn.secondary:hover { background: #388bfd; }
-                  .info-text {
-                      color: #8b949e;
-                      font-size: 0.9rem;
-                      line-height: 1.5;
-                  }
-              </style>
-          </head>
-          <body>
-              <div class="header">
-                  <h1>🔮 StefanOS</h1>
-                  <p>Personal Command Center</p>
-              </div>
-              <div class="last-updated">
-                  <span class="pulse"></span>Last updated: REPOS_PLACEHOLDER
-              </div>
-              
-              <div class="grid">
-                  <!-- Weather -->
-                  <div class="card">
-                      <h2>🌤️ Weather · Ganeasa, RO</h2>
-                      <div class="weather-main" id="weather-icon">☀️</div>
-                      <div class="weather-temp" id="weather-temp">--°C</div>
-                      <div class="weather-details">
-                          <div class="metric">
-                              <div class="metric-label">Feels Like</div>
-                              <div class="metric-value" id="feels-like">--°</div>
-                          </div>
-                          <div class="metric">
-                              <div class="metric-label">Humidity</div>
-                              <div class="metric-value" id="humidity">--%</div>
-                          </div>
-                          <div class="metric">
-                              <div class="metric-label">Wind</div>
-                              <div class="metric-value" id="wind">--km/h</div>
-                          </div>
-                      </div>
-                  </div>
-
-                  <!-- GitHub Stats -->
-                  <div class="card">
-                      <h2>🐙 GitHub Activity</h2>
-                      <div class="stat-grid">
-                          <div class="stat-box">
-                              <div class="stat-number">REPOS_PLACEHOLDER</div>
-                              <div class="stat-label">Repositories</div>
-                          </div>
-                          <div class="stat-box">
-                              <div class="stat-number">EVENTS_PLACEHOLDER</div>
-                              <div class="stat-label">Recent Events</div>
-                          </div>
-                      </div>
-                      <div id="github-activity">
-                          <div class="activity-item">
-                              <span>⏳</span>
-                              <span>Loading recent activity...</span>
-                          </div>
-                      </div>
-                  </div>
-
-                  <!-- Kimi Claw Status -->
-                  <div class="card">
-                      <h2>🔮 Kimi Claw Status</h2>
-                      <div class="info-text">
-                          <p style="margin-bottom: 1rem;">
-                              <span class="pulse"></span>
-                              <strong>Status:</strong> Online & Autonomous
-                          </p>
-                          <p style="margin-bottom: 1rem;">
-                              Autonomous agents running continuous improvement:
-                          </p>
-                          <ul style="list-style: none; margin-left: 0;">
-                              <li style="margin-bottom: 0.5rem;">✅ Memory Curator (every 6h)</li>
-                              <li style="margin-bottom: 0.5rem;">✅ Skill Explorer (daily)</li>
-                              <li style="margin-bottom: 0.5rem;">✅ Self-Architect (daily)</li>
-                              <li style="margin-bottom: 0.5rem;">✅ Knowledge Seeker (daily)</li>
-                              <li style="margin-bottom: 0.5rem;">✅ Diary Keeper (daily)</li>
-                          </ul>
-                      </div>
-                  </div>
-
-                  <!-- Active Projects -->
-                  <div class="card">
-                      <h2>🚀 Active Projects</h2>
-                      <div class="activity-item">
-                          <span>🤖</span>
-                          <div>
-                              <div class="repo-name">Kimi Claw Evolution</div>
-                              <div style="font-size: 0.8rem; color: #8b949e;">Autonomous self-improvement system</div>
-                          </div>
-                          <span class="activity-meta">In Progress</span>
-                      </div>
-                      <div class="activity-item">
-                          <span>💰</span>
-                          <div>
-                              <div class="repo-name">Financial Reconciliation Agent</div>
-                              <div style="font-size: 0.8rem; color: #8b949e;">SMB automation prototype</div>
-                          </div>
-                          <span class="activity-meta">Building</span>
-                      </div>
-                      <div class="activity-item">
-                          <span>📊</span>
-                          <div>
-                              <div class="repo-name">Opportunity Scanner</div>
-                              <div style="font-size: 0.8rem; color: #8b949e;">Daily automated research</div>
-                          </div>
-                          <span class="activity-meta">Running</span>
-                      </div>
-                  </div>
-
-                  <!-- Quick Links -->
-                  <div class="card">
-                      <h2>⚡ Quick Links</h2>
-                      <a href="https://github.com/dekolor" target="_blank" style="text-decoration: none;">
-                          <button class="btn">🐙 Your GitHub Profile</button>
-                      </a>
-                      <a href="https://github.com/claudebot21" target="_blank" style="text-decoration: none;">
-                          <button class="btn secondary">🤖 Kimi Claw Repos</button>
-                      </a>
-                      <button class="btn secondary" onclick="location.reload()">🔄 Refresh Data</button>
-                  </div>
-
-                  <!-- System Info -->
-                  <div class="card">
-                      <h2>📈 System Overview</h2>
-                      <div class="info-text">
-                          <p><strong>Location:</strong> Ganeasa, Ilfov, Romania</p>
-                          <p><strong>Timezone:</strong> EET (UTC+2)</p>
-                          <p><strong>Primary Channel:</strong> Discord</p>
-                          <p style="margin-top: 1rem;">
-                              <strong>Active Integrations:</strong>
-                          </p>
-                          <p>• GitHub (read access)</p>
-                          <p>• Discord messaging</p>
-                          <p>• 58 available skills</p>
-                          <p>• 5 autonomous subagents</p>
-                      </div>
-                  </div>
-              </div>
-
-              <script>
-                  // Weather data for Ganeasa, Romania
-                  async function fetchWeather() {
-                      try {
-                          const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.5&longitude=26.0&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m');
-                          const data = await res.json();
-                          const current = data.current;
-                          
-                          document.getElementById('weather-temp').textContent = Math.round(current.temperature_2m) + '°C';
-                          document.getElementById('feels-like').textContent = Math.round(current.apparent_temperature) + '°';
-                          document.getElementById('humidity').textContent = current.relative_humidity_2m + '%';
-                          document.getElementById('wind').textContent = Math.round(current.wind_speed_10m) + ' km/h';
-                          
-                          const icons = {0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️', 51: '🌦️', 53: '🌧️', 55: '🌧️', 61: '🌧️', 63: '🌧️', 65: '🌧️', 71: '🌨️', 73: '🌨️', 75: '🌨️', 95: '⛈️'};
-                          document.getElementById('weather-icon').textContent = icons[current.weather_code] || '☁️';
-                      } catch (e) {
-                          console.error('Weather fetch failed:', e);
-                      }
-                  }
-
-                  // Fetch GitHub activity from activity.json
-                  async function fetchActivity() {
-                      try {
-                          const res = await fetch('activity.json');
-                          const activities = await res.json();
-                          
-                          let html = '';
-                          activities.slice(0, 5).forEach(act => {
-                              const date = new Date(act.date).toLocaleDateString();
-                              const icon = act.type === 'PushEvent' ? '⬆️' : 
-                                          act.type === 'CreateEvent' ? '✨' : 
-                                          act.type === 'PullRequestEvent' ? '🔀' : 
-                                          act.type === 'IssuesEvent' ? '🐛' : '📝';
-                              const repo = act.repo.split('/').pop();
-                              html += `<div class="activity-item">
-                                  <span>${icon}</span>
-                                  <span class="repo-name">${repo}</span>
-                                  <span class="activity-meta">${date}</span>
-                              </div>`;
-                          });
-                          document.getElementById('github-activity').innerHTML = html;
-                      } catch (e) {
-                          console.error('Activity fetch failed:', e);
-                      }
-                  }
-
-                  fetchWeather();
-                  fetchActivity();
-                  setInterval(fetchWeather, 300000);
-              </script>
-          </body>
-          </html>
-          HTML
-          
-          # Replace placeholders with actual values
-          sed -i "s/REPOS_PLACEHOLDER/$UPDATED/g" index.html
-          sed -i "s/REPOS_PLACEHOLDER/$REPOS/g" index.html
-          sed -i "s/EVENTS_PLACEHOLDER/$EVENTS/g" index.html
-          
-      - name: Commit and Push
+      - name: Commit Data Files
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add index.html activity.json data.json
+          git add activity.json dashboard-data.json
           git diff --quiet && git diff --staged --quiet || git commit -m "Update dashboard data [$(date -u +"%Y-%m-%d %H:%M UTC")]"
           git push
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
