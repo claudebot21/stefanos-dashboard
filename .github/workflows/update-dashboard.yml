@@ -2,8 +2,8 @@ name: Update Dashboard Data
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Every 15 minutes
-  workflow_dispatch:  # Allow manual trigger
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
   push:
     branches: [ master, main ]
 
@@ -26,17 +26,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Install GitHub CLI
-          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt update
-          sudo apt install gh jq -y
-          
-          # Authenticate
-          echo "$GH_TOKEN" | gh auth login --with-token
-          
           # Get repo count for claudebot21
           REPO_COUNT=$(gh repo list claudebot21 --limit 1000 --json name | jq length)
           echo "REPO_COUNT=$REPO_COUNT" >> $GITHUB_ENV
@@ -68,7 +57,7 @@ jobs:
           git config user.email "actions@github.com"
           git add activity.json dashboard-data.json
           git diff --quiet && git diff --staged --quiet || git commit -m "Update dashboard data [$(date -u +"%Y-%m-%d %H:%M UTC")]"
-          git push
+          git push || true
           
       - name: Setup Pages
         uses: actions/configure-pages@v4
