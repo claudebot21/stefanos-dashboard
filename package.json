@@ -1,0 +1,14 @@
+{
+  "name": "stefanos-dashboard",
+  "version": "2.0.0",
+  "description": "StefanOS - Personal Command Center Dashboard",
+  "main": "api/server.js",
+  "scripts": {
+    "start": "node api/server.js",
+    "dev": "node api/server.js"
+  },
+  "keywords": ["dashboard", "monitoring", "github", "weather", "system-metrics"],
+  "author": "Kimi Claw",
+  "license": "MIT",
+  "engines": { "node": ">=16.0.0" }
+}
