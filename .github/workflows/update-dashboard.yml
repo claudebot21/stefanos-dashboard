@@ -18,6 +18,9 @@ concurrency:
 
 jobs:
   update-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,29 +29,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get repo count for claudebot21
           REPO_COUNT=$(gh repo list claudebot21 --limit 1000 --json name | jq length)
           echo "REPO_COUNT=$REPO_COUNT" >> $GITHUB_ENV
-          
-          # Get recent events for dekolor
           gh api users/dekolor/events --jq '.[:10] | map({type: .type, repo: .repo.name, date: .created_at})' > activity.json
-          
-          # Get event count
           EVENTS=$(gh api users/dekolor/events --jq 'length')
           echo "EVENTS=$EVENTS" >> $GITHUB_ENV
-          
-          # Get PR count
           PRS=$(gh search prs --author dekolor --state open --json number | jq length)
           echo "PRS=$PRS" >> $GITHUB_ENV
-          
-          # Create dashboard data file
           cat > dashboard-data.json << EOF
-          {
-            "repos": $REPO_COUNT,
-            "events": $EVENTS,
-            "openPRs": $PRS,
-            "updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          }
+          {"repos": $REPO_COUNT, "events": $EVENTS, "openPRs": $PRS, "updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"}
           EOF
           
       - name: Commit Data Files
