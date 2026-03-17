@@ -603,6 +603,17 @@
         function clearCache() { addLog('Clearing cache...', 'info'); setTimeout(() => addLog('Cache cleared', 'success'), 500); }
         function showHealth() { addLog('Health check...', 'info'); setTimeout(() => addLog('All systems OK', 'success'), 1000); }
 
+        // Keyboard shortcuts for quick actions
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            switch(e.key.toLowerCase()) {
+                case 'r': e.preventDefault(); refreshAll(); break;
+                case 'c': e.preventDefault(); clearCache(); break;
+                case 'h': e.preventDefault(); showHealth(); break;
+                case 'g': e.preventDefault(); window.open('https://github.com/dekolor', '_blank'); break;
+            }
+        });
+
         function init() {
             addLog('Initializing...', 'info');
             updateClock(); setInterval(updateClock, 1000);
